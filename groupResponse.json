@@ -1,0 +1,19 @@
+{"messages":
+  [
+    {
+      "type":"PlainText",
+      "group":1,
+      "value":"This is the appointment bot."
+    },
+    {
+      "type":"PlainText",
+      "group":2,
+      "value":"I can assist in booking an appointment.",
+    },
+    {
+      "type":"PlainText",
+      "group":3,
+      "value":"Is there anything i can do for you today?",
+    }
+  ]
+}
