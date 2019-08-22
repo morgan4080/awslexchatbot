@@ -1,0 +1,100 @@
+service: muxlexbots
+provider:
+  name: aws
+  runtime: nodejs10.x
+  region: us-east-1
+  stage: ${self:custom.secrets.NODE_ENV}
+  profile: default
+  environment:
+    NODE_ENV: ${self:custom.secrets.NODE_ENV}
+    DYNAMODB_TABLE: ${self:custom.secrets.DYNAMODB_TABLE}
+    SESSIONS_TABLE: ${self:custom.secrets.SESSIONS_TABLE}
+    BUCKET_NAME: ${self:custom.secrets.BUCKET_NAME}
+
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "s3:ListBucket"
+        - "s3:GetObject"
+        - "s3:PutObject"
+      Resource: "arn:aws:s3::*:bucket/${self:provider.environment.BUCKET_NAME}"
+
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:Scan
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+
+
+plugins:
+  - serverless-apigw-binary
+#  - serverless-dynamodb-local
+#  - serverless-offline
+
+functions:
+  client:
+    handler: handler.expresss
+    events:
+      - http:
+          path: /
+          method: GET
+          cors: true
+      - http: GET {proxy+}
+      - http:
+          path: /reply
+          method: POST
+          cors:
+            origin: '*'
+            headers:
+              - Content-Type
+              - X-Amz-Date
+              - Authorization
+              - X-Api-Key
+              - X-Amz-Security-Token
+              - X-Amz-User-Agent
+              - CSRF-Token
+            allowCredentials: true
+
+  intents:
+    handler: handler.intents
+
+custom:
+  secrets: ${file(secrets.json)}
+  apigwBinary:
+    types:
+      - '*/*'
+
+#  dynamodb:
+#    stages:
+#      - dev
+#    start:
+#      port: 8000
+#      inMemory: false
+#      migrate: true
+#      noStart: true
+
+resources:
+  Resources:
+    S3OperationsBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.BUCKET_NAME}
+
+    serversessions:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        ProvisionedThroughput:
+          ReadCapacityUnits: '5'
+          WriteCapacityUnits: '5'
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        TableName: ${self:provider.environment.SESSIONS_TABLE}
